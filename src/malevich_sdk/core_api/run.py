@@ -1,3 +1,6 @@
+import pathlib
+import tempfile
+import aiofiles
 from typing import Any, AsyncIterable, Iterable, Literal, Union
 import json
 
@@ -35,6 +38,24 @@ async def async_get_run_logs(run: 'Run', /) -> AsyncIterable[str]:
     for log in app_logs.data[run.id].data:
         yield log.data
 
+class RunFileResult:
+    def __init__(self, path: str) -> None:
+        self._core_path = path
+        self._physical_path = None
+        
+    async def downloadto_async(self, path: pathlib.Path) -> None:
+        from malevich_coretools import get_collection_object
+
+        objbytes = await get_collection_object(self._core_path, is_async=True)
+        if not path.exists():
+            if '.' in path.name:
+                path.parent.mkdir(parents=True, exist_ok=True)
+            path.touch()
+
+        async with aiofiles.open(path, 'wb') as f:
+            await f.write(objbytes)
+
+
 class RunResults:
     def __init__(self, run: 'Run') -> None:
         self.run = run
@@ -55,6 +76,20 @@ class RunResults:
             return [json.loads(doc.data) for doc in get_collections_by_group_name(result_def.name, self.run.operation_id, self.run.id).data[0].docs]
         else:
             return []
+
+    def file(self) -> RunFileResult:
+        from malevich_coretools import get_collections_by_group_name
+        
+        if self.run.pipeline_id is None:
+            raise ValueError("You cannot obtain results from a run that is not associated with a pipeline (i.e. `pipeline_id` is not set)")
+       
+        docs = self.docs()
+        if len(docs) != 1:
+            raise ValueError(f"Could not parse results as file, expected the collection to contain exactly one document, got {len(docs)}")
+        path = docs[0].get('path')
+        if path is None:
+            raise ValueError(f"Could not parse results as file, expected the document to contain a `path` field, available fields: {docs[0].keys()}")
+        return RunFileResult(path=path)
 
 RunStatus = Literal['in_progress', 'completed', 'failed']
 
@@ -183,10 +218,10 @@ def run(
         )
     })
 
-    # Prepare the pipeline to get an operation
-    active_operation = next(iter(pipeline.operations.active()), None)
-    if active_operation is None:
-        active_operation = pipeline.operations.create()
+    # # Prepare the pipeline to get an operation
+    # active_operation = next(iter(pipeline.operations.active()), None)
+    # if active_operation is None:
+    active_operation = pipeline.operations.create()
     active_operation.bind_pipeline(pipeline.id, verify=True)
 
     # Get the main pipeline configuration to fetch actual collection names
@@ -206,6 +241,7 @@ def run(
             if arg_value and hasattr(arg_value, 'collectionName') and arg_value.collectionName:
                 collection_name_map[arg_name] = arg_value.collectionName
 
+    
     # Prepare collections using the actual collection names from the pipeline
     collections: dict[str, str] = {}
     for group_name, group_data in run_kwargs.items():

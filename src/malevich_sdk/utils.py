@@ -35,7 +35,8 @@ def getid(prefix: str) -> str:
 def parse_fn(fun_ref: str, /) -> FunctionRef:
     import re
     # FunctionName::$uuid (ref pattern)
-    # OR FunctionName::user?:password?/image_ref:tag@digest
+    # OR FunctionName::user:password@registry/image_ref:tag@digest
+    # OR FunctionName::user:password/image_ref:tag@digest
     # OR FunctionName::image_ref:tag@digest (without auth)
     # Note: digest must be SHA256 format (sha256:...), not simple strings like "latest"
 
@@ -51,7 +52,27 @@ def parse_fn(fun_ref: str, /) -> FunctionRef:
             syncRef=True,
         )
 
-    # Try pattern with user:password/
+    # Try pattern with user:password@registry/image:tag (e.g., user:token@ghcr.io/org/repo:tag)
+    match = re.match(r'^(?P<function_name>[^:]+)::(?P<user>[^:]+):(?P<password>[^@]+)@(?P<registry>[^/]+)/(?P<image_path>.+?):(?P<tag>[^@]+)(?:@(?P<digest>sha256:[a-f0-9]+))?$', fun_ref)
+    if match:
+        # Include registry, full image path and tag (and digest if present)
+        tag_part = match.group('tag')
+        registry = match.group('registry')
+        image_path = match.group('image_path')
+        if match.group('digest'):
+            ref_with_tag = f"{registry}/{image_path}:{tag_part}@{match.group('digest')}"
+        else:
+            ref_with_tag = f"{registry}/{image_path}:{tag_part}"
+        return FunctionRef(
+            processor_id=match.group('function_name'),
+            user=match.group('user'),
+            token=match.group('password'),
+            ref=ref_with_tag,
+            tag='',
+            syncRef=True,
+        )
+
+    # Try pattern with user:password/ (legacy Docker Hub format)
     match = re.match(r'^(?P<function_name>[^:]+)::(?P<user>[^:]+):(?P<password>[^/]+)/(?P<image_ref>[^:]+):(?P<tag>[^@]+)(?:@(?P<digest>sha256:[a-f0-9]+))?$', fun_ref)
     if match:
         # Include tag (and digest if present) in ref string
@@ -66,7 +87,7 @@ def parse_fn(fun_ref: str, /) -> FunctionRef:
             token=match.group('password'),
             ref=ref_with_tag,
             tag='',
-            syncRef=False,
+            syncRef=True,
         )
     
     # Try pattern without user:password/ (just image_ref:tag@digest)

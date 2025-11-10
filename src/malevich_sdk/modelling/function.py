@@ -11,11 +11,14 @@ import json
 import pathlib
 from typing import Any, AsyncContextManager, Callable, ContextManager, Generic, Literal, TypeAlias, TypeVar, Union, cast, TYPE_CHECKING
 
+from malevich_sdk.modelling.file import File
+
 try:
     import humps
 except ImportError:
     humps = None  # type: ignore
 
+from numpy import isin
 from pydantic import BaseModel, create_model, TypeAdapter
 
 
@@ -309,7 +312,7 @@ class Function(BaseModel):
 
 
 # Placeholder for PlainLogicInput - would be defined elsewhere
-class PlainLogicInput(BaseModel):
+class FunctionInput(BaseModel):
     """Plain logic input specification."""
     specification: ArgumentSpecification
     kind: str
@@ -457,7 +460,7 @@ def function(
                     if argument_value.specification.file_mode is not None:
                         raise ValueError(f"File mode is not supported in this implementation")
                     
-                    fn_object.arguments[key] = PlainLogicInput(
+                    fn_object.arguments[key] = FunctionInput(
                         specification=argument_value.specification,
                         kind='schema',
                         json_schema=json.dumps(value.annotation.model_json_schema()),
@@ -465,7 +468,7 @@ def function(
                     )
                 case InputArgument():
                     is_schema = issubclass_safe(value.annotation, BaseModel)
-                    fn_object.arguments[key] = PlainLogicInput(
+                    fn_object.arguments[key] = FunctionInput(
                         specification=argument_value.specification,
                         kind='schema' if is_schema else 'primitive',
                         json_schema=json.dumps(value.annotation.model_json_schema()) if is_schema else None,
@@ -475,7 +478,7 @@ def function(
                     # Handle default parameters
                     default_value = value.default
                     is_schema = issubclass_safe(value.annotation, BaseModel)
-                    fn_object.arguments[key] = PlainLogicInput(
+                    fn_object.arguments[key] = FunctionInput(
                         specification=ArgumentSpecification(
                             group=default_input_key,
                             required=default_value is inspect.Signature.empty,
@@ -501,7 +504,11 @@ def function(
         # For now, just map them as Any
         for key in input_map.keys():
             if key != '__input__':  # Skip default input key
-                annotations[key] = Any
+                annotations[key] = Doc
+        
+        if '__input__' in input_map:
+            annotations['__input__'] = Doc
+
         
         # Create i_to_key mapping for args
         i_to_key: dict[int, str] = dict(enumerate(annotations.keys()))
@@ -532,31 +539,8 @@ def function(
                 # Call the original function
                 async for item in fn(**kwargs_dict):
                     yield item
-        elif is_coroutine:
-            async def fn_wrapper(context: Any, *args: Any, **kwargs: Any) -> Any:
-                """Wrapper function for processor decorator."""
-                # Map positional args to parameter names (skip context which is at index 0)
-                inputs: dict[str, Any] = {
-                    i_to_key[i]: v
-                    for i, v in enumerate(args, start=1)  # Start from 1 to skip context
-                    if i_to_key[i] != 'context'
-                }
-                
-                # Prepare kwargs for the original function
-                kwargs_dict = unwrap_function_inputs(
-                    input_map,
-                    input_kinds,
-                    **inputs,
-                )
-                
-                # Replace RunContext defaults with actual Context object
-                if has_context:
-                    kwargs_dict['context'] = context
-                
-                # Call the original function
-                return await fn(**kwargs_dict)
         else:
-            def fn_wrapper(context: Any, *args: Any, **kwargs: Any) -> Any:
+            async def fn_wrapper(context: Context[Any], *args: Any, **kwargs: Any) -> Any:
                 """Wrapper function for processor decorator."""
                 # Map positional args to parameter names (skip context which is at index 0)
                 inputs: dict[str, Any] = {
@@ -571,16 +555,43 @@ def function(
                     input_kinds,
                     **inputs,
                 )
-                
+
                 # Replace RunContext defaults with actual Context object
                 if has_context:
                     kwargs_dict['context'] = context
                 
-                # Call the original function
-                return fn(**kwargs_dict)
+                # Call the original function (await if coroutine, otherwise call directly)
+                if is_coroutine:
+                    results = await fn(**kwargs_dict)
+                else:
+                    results = fn(**kwargs_dict)
+                
+                not_a_tuple = False
+                if not isinstance(results, tuple):
+                    not_a_tuple = True
+                    results = (results,)
+
+                mapped_results: list[Any] = []
+                for result in results:
+                    if isinstance(result, File):
+                       mapped_results.append(
+                            context.as_object(
+                                path_from=result.physical_path,
+                                path_to=result.core_path,
+                                path_prefix=''
+                            )
+                       )
+                    else:
+                        mapped_results.append(result)
+
+                if not_a_tuple:
+                    return mapped_results[0]
+                else:
+                    return tuple(mapped_results)
         
     
         # Set function attributes for processor decorator
+        print(annotations)
         setattr(fn_wrapper, "__annotations", annotations)
         setattr(fn_wrapper, "__argcount", len(annotations))
         setattr(fn_wrapper, "__varnames", list(annotations.keys()))

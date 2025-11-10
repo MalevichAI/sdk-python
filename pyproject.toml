@@ -8,6 +8,7 @@ authors = [
 ]
 requires-python = ">=3.10"
 dependencies = [
+    "aiofiles>=25.1.0",
     "malevich-app",
     "malevich-coretools>=0.3.68",
     "pyhumps>=3.8.0",
@@ -19,6 +20,3 @@ malevich-sdk = "malevich_sdk:main"
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
-
-[tool.uv.sources]
-malevich-app = { git = "https://github.com/malevichAI/app" }
