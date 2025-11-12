@@ -77,6 +77,10 @@ class Pipeline:
             },
         )
 
+    @classmethod
+    def from_core_pipeline(cls, pipeline: CorePipeline) -> Self:
+        return cls(processors=pipeline.processors, id=pipeline.pipelineId, result_map=pipeline.results)
+
     @property
     def operations(self) -> PipelineOperations:
         return PipelineOperations(self)
@@ -92,12 +96,19 @@ class Pipeline:
             raise PipelineNotFoundError(f"Pipeline {id} not found") from e
 
     @classmethod
-    def upsert(cls, processors: dict[str, Processor]) -> Self:
+    def upsert(cls, pipeline: 'Pipeline') -> Self:
         from malevich_coretools import create_pipeline
 
-        pipeline = cls(processors=processors)
         try:
             return cls.get(pipeline.id)
         except PipelineNotFoundError:   
             create_pipeline(pipeline.id, processors=pipeline.as_core_pipeline.processors, results=pipeline.as_core_pipeline.results)
             return cls.get(pipeline.id)
+
+    def terminals(self) -> dict[str, Processor]:
+        used_as_arguments = set()
+        for processor in self.__processors.values():
+            for argument in processor.arguments.values():
+                if argument.id:
+                    used_as_arguments.add(argument.id)
+        return {name: processor for name, processor in self.__processors.items() if name not in used_as_arguments}

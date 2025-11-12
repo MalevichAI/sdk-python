@@ -582,7 +582,7 @@ def function(
                             )
                        )
                     else:
-                        mapped_results.append(result)
+                        mapped_results.append(output_model(data=result))
 
                 if not_a_tuple:
                     return mapped_results[0]

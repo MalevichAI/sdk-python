@@ -1,0 +1,34 @@
+---
+title: Installation
+description: How to install Malevich SDK
+---
+
+## Github Authentication
+
+Github authentication is required to install the necessary packages.
+
+<Tabs items={['macOS']}>
+<Tab value="macOS">
+
+1. We recommend installing [Github CLI](https://formulae.brew.sh/cask/github)
+
+```bash
+brew install --cask github
+```
+
+2. Follow the instructions to authenticate with Github:
+
+```bash
+gh auth login
+```
+</Tab>
+</Tabs>
+
+## Installation
+
+We recommend using [uv](https://github.com/astral-sh/uv) for installation
+
+```bash
+uv add git+https://github.com/MalevichAI/sdk-python
+```
+

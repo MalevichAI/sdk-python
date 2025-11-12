@@ -12,6 +12,8 @@ dependencies = [
     "malevich-app",
     "malevich-coretools>=0.3.68",
     "pyhumps>=3.8.0",
+    "typer>=0.12.0",
+    "rich>=13.0.0",
 ]
 
 [project.scripts]

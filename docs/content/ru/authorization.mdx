@@ -1,0 +1,64 @@
+---
+title: Авторизация
+---
+
+SDK позволяет сохранить данные для авторизации в Core, а также данные авторизации в Docker репозиториях. Данные сохраняются в директорию `~/.malevich`. Сохранение позволит автоматически использовать чувствительные данные без необходимости указания их в явном виде в коде.
+
+```bash
+malevich_sdk creds --help
+```
+
+## Авторизация в Core
+
+Перед выполнением любых операций с Core, необходимо предоставить URL для соединения и данные пользователя. Это можно сделать при помощи контекстных менеджеров `with_connection`, `with_user` или `with_credentials`. 
+
+<Tabs items={['with_user', 'with_credentials']}>
+<Tab value="with_user">
+Чтобы использовать учетные данные из хранилища, необходимо авторизоваться:
+
+```bash
+malevich-sdk creds add core username password
+```
+
+Затем достаточно указать логин пользователя:
+
+```python
+from malevich_sdk import with_connection, with_user
+
+with with_connection("https://core.mtp.group"), with_user('username'):
+   # ...
+```
+</Tab>
+<Tab value="with_credentials">
+```python
+from malevich_sdk import with_credentials
+
+with with_credentials(('username', 'password')):
+   # ...
+```
+</Tab>
+</Tabs>
+
+## Авторизация в Docker репозиториях
+
+При запуске функций, необходимо указывать адрес Docker-образа, предоставляющего эту функцию. Если репозиторий приватный, понадобится указать учетные данные для доступа к нему. При наличии учетных данных в хранилище, они будут использоваться автоматически для репозиториев, совпадающих по префиксу.
+
+Например, для Github Container Registry:
+
+```bash
+malevich-sdk creds add image ghcr.io/malevichai USERNAME ghp-...
+```
+
+Далее, функцию можно задать проще
+
+```python
+from malevich_sdk import run
+
+async def with_no_auth():
+    # Без учетных данных в хранилище
+    run_object = run('CreateInvoice::USERNAME:ghp-123@ghcr.io/malevichai/malevich-modules/create-invoice:latest')
+
+async def with_auth():
+    # malevich-sdk creds add image ghcr.io/malevichai USERNAME ghp-...
+    run_object = run('CreateInvoice::ghcr.io/malevichai/malevich-modules/create-invoice:latest')
+```

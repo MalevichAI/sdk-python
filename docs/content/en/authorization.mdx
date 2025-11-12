@@ -1,0 +1,102 @@
+---
+title: Authorization
+---
+
+The SDK allows you to save authorization data for Core, as well as authorization data for Docker repositories. Data is stored in the `~/.malevich` directory. Saving credentials allows automatic use of sensitive data without the need to specify them explicitly in code.
+
+## Core Authorization
+
+### Adding Core Credentials
+
+To add Core credentials, use the command:
+
+```bash
+malevich-sdk creds add core <username> <password>
+```
+
+By default, if credentials already exist, they will not be replaced. To explicitly specify overwrite, use the `--overwrite` flag:
+
+```bash
+malevich-sdk creds add core myuser mypassword --overwrite
+```
+
+You can also specify a custom path for storing configuration:
+
+```bash
+malevich-sdk creds add core myuser mypassword --path /custom/path/.malevich
+```
+
+### Viewing Core Credentials
+
+To view stored Core credentials:
+
+```bash
+malevich-sdk creds list core
+```
+
+### Removing Core Credentials
+
+To remove Core credentials:
+
+```bash
+malevich-sdk creds remove core <username>
+```
+
+## Docker Repository Authorization
+
+### Adding Repository Credentials
+
+To add Docker repository credentials:
+
+```bash
+malevich-sdk creds add image <registry> <username> <token>
+```
+
+Examples:
+
+```bash
+# GitHub Container Registry
+malevich-sdk creds add image ghcr.io/malevichai USERNAME ghp_token123
+
+# Docker Hub
+malevich-sdk creds add image docker.io dockeruser dckr_pat_xyz123
+```
+
+By default, existing credentials for the specified repository will be replaced. For explicit specification, use `--overwrite`:
+
+```bash
+malevich-sdk creds add image ghcr.io/malevichai myuser mytoken --overwrite
+```
+
+### Viewing Repository Credentials
+
+To view all stored repository credentials:
+
+```bash
+malevich-sdk creds list image
+```
+
+### Removing Repository Credentials
+
+To remove credentials for a specific repository:
+
+```bash
+malevich-sdk creds remove image <registry>
+```
+
+Example:
+
+```bash
+malevich-sdk creds remove image ghcr.io/malevichai
+```
+
+## Additional Operations
+
+### Clearing All Credentials
+
+To remove all stored credentials (Core and repositories):
+
+```bash
+malevich-sdk creds clear
+```
+
