@@ -300,5 +300,5 @@ def runlocal(
     **kwargs: Any,
 ) -> Coroutine[Any, Any, Run]:
     flow = Flow()
-    _ = flow.startwith('__main__', __function, __config, *groups, data=kwargs or {})
+    _ = flow.startwith('__main__', *groups, function=__function, config=__config, data=kwargs or {})
     return runflow(flow, local=True, imports=imports)

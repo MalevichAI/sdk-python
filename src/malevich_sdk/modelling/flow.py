@@ -40,6 +40,7 @@ class Flow:
         self, 
         name: str,
         /,
+        *groups: Group, 
         function: FunctionRef | str, 
         config: dict[str, Any] | None = None,
         data: Any | None = None,
@@ -47,7 +48,6 @@ class Flow:
         cpu_limit: int | None = None,
         memory_request: int | None = None,
         cpu_request: int | None = None,
-        *groups: Group, 
     ) -> 'FlowRef':
         function = parse_fn(function) if isinstance(function, str) else function
         if 'name' in self.__id_map:

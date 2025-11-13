@@ -192,3 +192,4 @@ malevich-sdk auth whoami
 - `user: str`
 - `token: str`
 
+

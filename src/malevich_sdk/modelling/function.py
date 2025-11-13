@@ -417,6 +417,7 @@ def function(
 
         # Determine return file mode (simplified - would check file output types)
         return_file_mode: Literal['single', 'multi', 'obj'] | None = None
+        type_adapter_return_annotation = TypeAdapter(return_annotation)
 
         # Determine output model
         if issubclass_safe(return_annotation, BaseModel):
@@ -582,7 +583,15 @@ def function(
                             )
                        )
                     else:
-                        mapped_results.append(output_model(data=result))
+                        try:
+                            type_adapter_return_annotation.validate_python(result)
+                        except Exception as e:
+                            raise ValueError(f"Function {fn_object.id} claimed to be returning {return_annotation}, but returned {type(result)}, causing a validation error: {e}")
+                        
+                        if isinstance(result, BaseModel):
+                            mapped_results.append(result.model_dump(mode='json'))
+                        else:
+                            mapped_results.append(output_model(data=result))
 
                 if not_a_tuple:
                     return mapped_results[0]

@@ -34,3 +34,4 @@ def hello(
 # from malevich_sdk.cli.commands.example import example_app
 # app.add_typer(example_app)
 
+
